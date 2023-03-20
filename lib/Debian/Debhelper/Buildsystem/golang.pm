@@ -6,11 +6,25 @@ dh-golang -- debhelper build system class for Go packages
 
 =head1 DESCRIPTION
 
-The dh-golang package provides a build system for debhelper which can be used in
-the following way:
+The dh-golang package provides a build system for debhelper which can be used
+by adding B<dh-sequence-golang> to the package build dependencies,
+and passing the following options to B<dh>:
 
  %:
- 	dh $@ --builddirectory=_build --buildsystem=golang --with=golang
+ 	dh $@ --builddirectory=_build --buildsystem=golang
+
+Starting with debhelper 13.4 (a versioned build dependency is currently
+required), the build system is automatically detected, and the following
+is enough:
+
+ %:
+ 	dh $@ --builddirectory=_build
+
+Starting with debhelper compatibility level 14, the build directory defaults
+to F<_build>, and the following is enough:
+
+ %:
+ 	dh $@
 
 =head1 IMPLEMENTATION
 
@@ -244,11 +258,12 @@ and possibly fix any resulting breakages).
 =cut
 
 use strict;
-use base 'Debian::Debhelper::Buildsystem';
+use warnings;
+use parent qw(Debian::Debhelper::Buildsystem);
 use Debian::Debhelper::Dh_Lib;
 use Dpkg::BuildFlags;
 use Dpkg::Control::Info;
-use File::Copy "cp"; # in core since 5.002
+use File::Copy qw(cp); # in core since 5.002
 use File::Path qw(make_path); # in core since 5.001
 use File::Find; # in core since 5
 use File::Spec; # in core since 5.00405
@@ -257,7 +272,28 @@ sub DESCRIPTION {
     "Go"
 }
 
+sub DEFAULT_BUILD_DIRECTORY {
+    my $this = shift;
+    return $this->SUPER::DEFAULT_BUILD_DIRECTORY() if compat(13);
+    return '_build';
+}
+
+# Use Go module dependency manager files that have non-generic names. Based
+# on the list from <golang/src/cmd/go/internal/modconv/modconv.go>.
+my @gomodfiles = qw(
+    go.mod
+    GLOCKFILE
+    Godeps/Godeps.json
+    Gopkg.lock
+    glide.lock
+);
+
 sub check_auto_buildable {
+    my $this = shift;
+
+    foreach my $file (@gomodfiles) {
+        return 1 if -e $this->get_sourcepath($file);
+    }
     return 0
 }
 
@@ -278,6 +314,10 @@ sub _set_dh_gopkg {
 
     my $control = Dpkg::Control::Info->new();
     my $source = $control->get_source();
+
+    # If there is no XS-Go-Import-Path do not bother trying to parse it.
+    return if not length $source->{"XS-Go-Import-Path"};
+
     # XS-Go-Import-Path can contain several paths. We use the first one.
     # Example: XS-Go-Import-Path: github.com/go-mgo/mgo,
     #                             gopkg.in/mgo.v2,
@@ -330,9 +370,19 @@ sub _set_cgo_flags {
     my $bf = Dpkg::BuildFlags->new();
     $bf->load_config();
 
+    if ($bf->has_features("optimize") and {$bf->get_features("optimize")}->{"lto"}) {
+        # cgo doesn't support LTO #1013102, https://golang.org/issues/43505
+        warning("LTO optimize is enable in buildflags. But cgo doesn't support it. " .
+                "LTO flags will be stripped in cgo.");
+    }
+
     my @flags = ( "CFLAGS", "CPPFLAGS", "CXXFLAGS", "FFLAGS", "LDFLAGS" );
     foreach my $flag (@flags) {
         if (! exists $ENV{"CGO_" . $flag}) {
+            $bf->strip($flag, "-ffat-lto-objects -flto=auto");
+            # https://golang.org/issues/54313
+            # https://github.com/golang/go/commit/365ca694
+            $bf->strip($flag, "-fstack-protector-strong");
             $ENV{"CGO_" . $flag} = $bf->get($flag);
         }
     }
@@ -391,6 +441,14 @@ sub _set_gocross {
 }
 
 my ($_go1_minor) = (qx(go version) =~ /go version go1\.([0-9]+)/);
+if (!defined $_go1_minor) {
+    # Possible pre-release version of gccgo with "go version unknown".
+    # Derive Go minor version from from GCC major version, e.g.
+    # "go-12 env GOTOOLDIR" returns "/usr/lib/gcc/x86_64-linux-gnu/12".
+    # See https://go.dev/doc/install/gccgo#Releases
+    my ($_gcc_major) = (qx(go env GOTOOLDIR) =~ /\/([0-9]+)$/);
+    $_go1_minor = $_gcc_major * 2 - 6;
+}
 sub _go1_has_minor {
     my ($minor) = @_;
     return $_go1_minor >= $minor;
@@ -465,6 +523,7 @@ sub configure {
         },
         wanted => sub {
             # Strip “./” in the beginning of the path.
+            return if $_ eq '.';
             my $name = substr($File::Find::name, 2);
             if ($install_all) {
                 # All files will be installed
@@ -566,17 +625,20 @@ sub get_targets {
     my $caller = (caller(1))[3] // '(main)';
     if ($caller eq "Debian::Debhelper::Buildsystem::golang::build") {
         my $builddir = $this->get_builddir();
-        for my $target (@targets) {
+        my @keep = ();
+        foreach my $target (@targets) {
             my $dir = "$builddir/src/$target";
             opendir(my $dirh, $dir) or error("Unable to open directory $dir $!");
             my @non_test_go_files = grep { /(?<!_test)\.go$/ && -f "$dir/$_" } readdir($dirh);
             closedir $dirh;
 
-            if (! @non_test_go_files) {
+            if (@non_test_go_files) {
+                push @keep, $target;
+            } else {
                 warning("$target contains no non-test Go files, removing it from build");
-                @targets = grep { $_ ne $target } @targets;
             };
         }
+        @targets = @keep;
     }
 
     return @targets;

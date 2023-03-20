@@ -1,6 +1,7 @@
 #!/usr/bin/make -f
 
-export DH_OPTIONS
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
 
 %:
-	dh $@ --builddirectory=_build --buildsystem=golang --with=golang
+	dh $@ --builddirectory=_build
