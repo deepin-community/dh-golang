@@ -1,3 +1,126 @@
+dh-golang (1.59) unstable; urgency=medium
+
+  [ Shengjing Zhu ]
+  * Strip -fstack-protector-strong on all architectures.
+    To align upstream settings.
+
+  [ Guillem Jover ]
+  * Use «grep -E» instead of obsolescent «egrep»
+    Starting with grep 3.8, using egrep/fgrep causes obsolescence warnings
+    to be emitted, as these commands are slated for removal in the near
+    future.
+
+  [ Anthony Fok ]
+  * Check $bf->has_features("optimize") before $bf->get_features("optimize")
+    as the new "optimize" area did not exist in libdpkg-perl (<< 1.21.0).
+    This fixes the error "Can't use an undefined value as a HASH reference
+    at /usr/share/perl5/Dpkg/BuildFlags.pm line 394." in bullseye-backports.
+
+ -- Anthony Fok <foka@debian.org>  Sun, 25 Sep 2022 05:29:03 -0600
+
+dh-golang (1.58) unstable; urgency=medium
+
+  * Team upload.
+  * Disable dh_dwz.
+    With golang/1.19, all packages FTBFS with:
+    Found compressed .debug_abbrev section, not attempting dwz compression
+
+ -- Shengjing Zhu <zhsj@debian.org>  Sun, 07 Aug 2022 20:08:52 +0800
+
+dh-golang (1.57) unstable; urgency=medium
+
+  * Team upload.
+  * Ensure lto optimize option is removed when setting CGO flags.
+    Updates #1013102
+  * Strip -fstack-protector-strong in CGO flags on i386 (Closes: #1016777)
+
+ -- Shengjing Zhu <zhsj@debian.org>  Sun, 07 Aug 2022 18:31:52 +0800
+
+dh-golang (1.56) unstable; urgency=medium
+
+  * Move the version constraint (>= 1.21.3~) from dpkg to libdpkg-perl.
+    Thanks to Guillem Jover who noted on 2022-04-03 that "as otherwise the
+    [Static-Built-Using] field will be warned about and will not have the
+    desired export semantics applied."
+  * Bump Standards-Version to 4.6.1 (no change)
+
+ -- Anthony Fok <foka@debian.org>  Mon, 30 May 2022 00:46:11 -0600
+
+dh-golang (1.55) unstable; urgency=medium
+
+  [ Dan Bungert ]
+  * override_dh_auto_configure: remove symlinks
+    cp -a is being used to get a local copy of source, but we may already
+    have a partial copy locally, with symlinks.  cp -a isn't able to cope
+    with symlinks that point to what we're trying to copy in.  Remove those
+    symlinks, since we're about to replace them with non-linked copies.
+
+  [ Anthony Fok ]
+  * Change Section from devel to golang
+  * dh_golang: Transition to misc:Static-Built-Using substvar, but continue
+    to emit misc:Built-Using for backward compatibility during transition.
+    Add "Depends: dpkg (>= 1.21.3~)" for Static-Built-Using field support.
+    (Closes: #921284)
+
+ -- Anthony Fok <foka@debian.org>  Sun, 03 Apr 2022 02:14:41 -0600
+
+dh-golang (1.54) unstable; urgency=medium
+
+  [ Martina Ferrari ]
+  * Update my name and email address.
+
+  [ Anthony Fok ]
+  * Buildsystem::golang: Derive Go minor version from GCC major version
+    in case of gccgo pre-release that returns "go version unknown".
+    Fixes "Use of uninitialized value $_go1_minor in numeric ge (>=)" error
+  * script/dh_golang: Detect gccgo with "go env GOTOOLDIR"
+    Fixes "error calling index: index out of range: 0" with the current
+    pre-release gccgo-12 that gives "go version unknown" (See #907263)
+
+ -- Anthony Fok <foka@debian.org>  Mon, 21 Mar 2022 23:53:36 -0600
+
+dh-golang (1.53) unstable; urgency=medium
+
+  [ Guillem Jover ]
+  * Add reference to Debian::Debhelper::Buildsystem::golang(1) to SEE ALSO.
+    Most of the machinery documentation is provided in the build system
+    module, and it's non-obvious when checking the dh_golang(1) man page.
+
+  [ Anthony Fok ]
+  * Debian::Debhelper::Buildsystem::golang: Fix logic in
+    "no non-test Go files" path removal.
+    According to https://perldoc.perl.org/perlsyn#Foreach-Loops:
+        If any part of LIST is an array, foreach will get very confused
+        if you add or remove elements within the loop body, for example
+        with splice. So don't do that.
+    Well, I was ignorant and did just that to @targets (removing elements
+    with grep) in get_targets, causing some elements to be skipped, and
+    this bug finally manifests itself with golang-google-api/0.61.0-1
+    where there are two consecutive paths with no non-test Go files.
+
+ -- Anthony Fok <foka@debian.org>  Thu, 16 Dec 2021 14:17:48 -0700
+
+dh-golang (1.52) unstable; urgency=medium
+
+  * Team upload.
+  * Debhelper::Buildsystem::golang: Use qw instead of quotes.
+  * Enable warnings in perl code.
+  * Use modern parent instead of base module.
+  * example: Comment DH_VERBOSE by default.
+  * Update documentation and example about the sequencer usage.
+  * Debhelper::Buildsystem::golang: Add auto-detection support.
+  * Debhelper::Buildsystem::golang: Auto-detect using more dependency manager
+    files.
+  * Add gitignore files.
+  * Debhelper::Buildsystem::golang: Change default build directory to _build.
+  * Debhelper::Buildsystem::golang: Do not try to parse missing
+    XS-Go-Import-Path.
+  * Debhelper::Buildsystem::golang, example: Update dh usage documentation.
+  * Debian::Debhelper::Buildsystem::golang: Ignore '.' in find() on configure.
+  * Bump Standards-Version to 4.6.0 (no changes needed).
+
+ -- Guillem Jover <gjover@sipwise.com>  Wed, 24 Nov 2021 14:48:20 +0100
+
 dh-golang (1.51) unstable; urgency=medium
 
   * Team upload.
@@ -242,7 +365,7 @@ dh-golang (1.36) unstable; urgency=medium
     as well as build process. Default to true starting from compat
     level 12. (Closes: #904261)
 
- -- Martín Ferrari <tincho@debian.org>  Fri, 14 Sep 2018 15:40:15 +0000
+ -- Martina Ferrari <tina@debian.org>  Fri, 14 Sep 2018 15:40:15 +0000
 
 dh-golang (1.35) unstable; urgency=medium
 
@@ -363,7 +486,7 @@ dh-golang (1.21.1) unstable; urgency=medium
 
   * Actually install the new script introduced in 1.21.
 
- -- Martín Ferrari <tincho@debian.org>  Mon, 29 May 2017 06:04:15 +0100
+ -- Martina Ferrari <tina@debian.org>  Mon, 29 May 2017 06:04:15 +0100
 
 dh-golang (1.21) unstable; urgency=medium
 
@@ -371,13 +494,13 @@ dh-golang (1.21) unstable; urgency=medium
     package tests on installed packages.
   * Add myself as Uploader.
 
- -- Martín Ferrari <tincho@debian.org>  Sun, 28 May 2017 20:50:00 +0000
+ -- Martina Ferrari <tina@debian.org>  Sun, 28 May 2017 20:50:00 +0000
 
 dh-golang (1.20) unstable; urgency=medium
 
   * Team upload.
 
-  [ Martín Ferrari ]
+  [ Martina Ferrari ]
   * Stop forcing the compression to xz, and that has been the default for some
     time now, even Debian stable has that. Thanks to Guillem Jover for the
     patch. Closes: #840821.
@@ -427,7 +550,7 @@ dh-golang (1.17) unstable; urgency=medium
   * Add --no-source and --no-binaries options to install target.
   * Display a debug message when copying files to the build tree.
 
- -- Martín Ferrari <tincho@debian.org>  Mon, 16 May 2016 01:08:06 +0100
+ -- Martina Ferrari <tina@debian.org>  Mon, 16 May 2016 01:08:06 +0100
 
 dh-golang (1.16) unstable; urgency=medium
 

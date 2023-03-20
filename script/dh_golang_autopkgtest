@@ -41,7 +41,7 @@ prepare() {
     TARGETS=$(make -pRrq -f debian/rules : 2>/dev/null |
         awk -F: '/^# File/,/^# Finished Make data base/ {
             if ($1 !~ "^[#.]") {print $1}
-            }' | egrep -v -e '^[^[:alnum:]]' | egrep .)
+            }' | grep -vE -e '^[^[:alnum:]]' | grep -E .)
     debug "Defined targets in debian/rules:" $TARGETS
 
     # Add magic var-printing target.
@@ -92,6 +92,8 @@ APT_BDIR := $(shell perl -w -MDebian::Debhelper::Dh_Buildsystems -e \
 
 override_dh_auto_configure:
 	mkdir -p "${APT_BDIR}"
+	# remove existing symlinks, since "cp -a" won't convert them
+	find "${APT_BDIR}" -type l -exec rm "{}" \;
 	cp -a /usr/share/gocode/src "${APT_BDIR}"
 END
 }
@@ -104,7 +106,7 @@ msg "Testing $IMP_PATH..."
 if [ -e "/usr/share/gocode/src/$IMP_PATH" ]; then
     msg "Source code installed by binary package, overriding" \
         "dh_auto_configure..."
-    if echo "$TARGETS" | egrep -q '(^| )override_dh_auto_configure($| )';
+    if echo "$TARGETS" | grep -qE '(^| )override_dh_auto_configure($| )';
     then
         msg "Disabling existing override_dh_auto_configure..."
         sed -i 's/^override_dh_auto_configure:/_&/' debian/rules
@@ -134,6 +136,6 @@ debug "-------------------------"
 # Re-build the package and run tests.
 call_rules build
 
-if echo "$TARGETS" | egrep -q '(^| )autopkgtest($| )'; then
+if echo "$TARGETS" | grep -qE '(^| )autopkgtest($| )'; then
     call_rules autopkgtest
 fi
