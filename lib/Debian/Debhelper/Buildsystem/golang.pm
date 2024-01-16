@@ -628,7 +628,7 @@ sub get_targets {
 
     my $buildpkg = $ENV{DH_GOLANG_BUILDPKG} || "$ENV{DH_GOPKG}/...";
     my $listopt = "";
-    if (_go1_has_minor(21)) {
+    if (_go1_has_minor(20)) {
         $listopt = "-e";
     }
     my $output = qx(go list $listopt $buildpkg);
