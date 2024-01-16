@@ -1,3 +1,30 @@
+dh-golang (1.62) unstable; urgency=medium
+
+  * Team upload.
+  * Don't capture verbose log when get builddir in autopkgtest.
+    Regression by ffbfb830: Set GO_TEST_TIMEOUT_SCALE for slow architecture
+
+ -- Shengjing Zhu <zhsj@debian.org>  Tue, 29 Aug 2023 11:04:48 +0800
+
+dh-golang (1.61) unstable; urgency=medium
+
+  * Team upload.
+  * Ignore erroneous packages when listing build packages on Go1.21.
+    See https://github.com/golang/go/issues/59186
+
+ -- Shengjing Zhu <zhsj@debian.org>  Sat, 26 Aug 2023 23:32:17 +0800
+
+dh-golang (1.60) unstable; urgency=medium
+
+  * Team upload.
+  * Set GOTOOLCHAIN=local to prevent Go1.21+ downloading new version
+  * Set GO_TEST_TIMEOUT_SCALE for slow architecture.
+    Go1.21 removes arch-specific timeout scale heuristics.
+    See https://github.com/golang/go/issues/57117
+  * Avoid calling go command in global variable (Closes: #1021111)
+
+ -- Shengjing Zhu <zhsj@debian.org>  Thu, 17 Aug 2023 17:37:47 +0800
+
 dh-golang (1.59) unstable; urgency=medium
 
   [ Shengjing Zhu ]
