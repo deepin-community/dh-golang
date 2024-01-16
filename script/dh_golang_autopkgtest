@@ -87,8 +87,9 @@ add_configure_override() {
     # Copy instead of symlink as `go list` can't deal with symlinks.
     cat >> debian/rules <<'END'
 
-APT_BDIR := $(shell perl -w -MDebian::Debhelper::Dh_Buildsystems -e \
-    'buildsystems_init(); print load_buildsystem("golang")->get_builddir()')
+APT_BDIR := $(shell env --unset=DH_VERBOSE perl -w \
+	-MDebian::Debhelper::Dh_Buildsystems \
+	-e 'buildsystems_init(); print load_buildsystem("golang")->get_builddir()')
 
 override_dh_auto_configure:
 	mkdir -p "${APT_BDIR}"

@@ -333,6 +333,8 @@ sub set_go_env {
     $this->_set_gocache();
     $this->_set_go111module();
     $this->_set_goproxy();
+    $this->_set_gotoolchain();
+    $this->_set_go_test_timeout();
     $this->_set_cgo_flags();
     $this->_set_gocross();
 }
@@ -364,6 +366,26 @@ sub _set_goproxy {
 
     # Disallow network access.
     $ENV{GOPROXY} = "off";
+}
+
+sub _set_gotoolchain {
+    # Prevent Go1.21+ downloading new version.
+    $ENV{GOTOOLCHAIN} = "local";
+}
+
+my %GO_TEST_TIMEOUT_MAPPING = (
+    'arm'      => '3',
+    'mips64el' => '4',
+    'mipsel'   => '4',
+    'riscv64'  => '3',
+);
+
+sub _set_go_test_timeout{
+    my $host_cpu = dpkg_architecture_value("DEB_HOST_ARCH_CPU");
+    if (defined(my $timeout = $GO_TEST_TIMEOUT_MAPPING{$host_cpu})) {
+        verbose_print("Set GO_TEST_TIMEOUT_SCALE to $timeout");
+        $ENV{"GO_TEST_TIMEOUT_SCALE"} = $timeout;
+    }
 }
 
 sub _set_cgo_flags {
@@ -440,16 +462,17 @@ sub _set_gocross {
     }
 }
 
-my ($_go1_minor) = (qx(go version) =~ /go version go1\.([0-9]+)/);
-if (!defined $_go1_minor) {
-    # Possible pre-release version of gccgo with "go version unknown".
-    # Derive Go minor version from from GCC major version, e.g.
-    # "go-12 env GOTOOLDIR" returns "/usr/lib/gcc/x86_64-linux-gnu/12".
-    # See https://go.dev/doc/install/gccgo#Releases
-    my ($_gcc_major) = (qx(go env GOTOOLDIR) =~ /\/([0-9]+)$/);
-    $_go1_minor = $_gcc_major * 2 - 6;
-}
 sub _go1_has_minor {
+    my ($_go1_minor) = (qx(go version) =~ /go version go1\.([0-9]+)/);
+    if (!defined $_go1_minor) {
+        # Possible pre-release version of gccgo with "go version unknown".
+        # Derive Go minor version from from GCC major version, e.g.
+        # "go-12 env GOTOOLDIR" returns "/usr/lib/gcc/x86_64-linux-gnu/12".
+        # See https://go.dev/doc/install/gccgo#Releases
+        my ($_gcc_major) = (qx(go env GOTOOLDIR) =~ /\/([0-9]+)$/);
+        $_go1_minor = $_gcc_major * 2 - 6;
+    }
+
     my ($minor) = @_;
     return $_go1_minor >= $minor;
 }
@@ -604,7 +627,11 @@ sub get_targets {
     my $this = shift;
 
     my $buildpkg = $ENV{DH_GOLANG_BUILDPKG} || "$ENV{DH_GOPKG}/...";
-    my $output = qx(go list $buildpkg);
+    my $listopt = "";
+    if (_go1_has_minor(21)) {
+        $listopt = "-e";
+    }
+    my $output = qx(go list $listopt $buildpkg);
     my @excludes = (exists($ENV{DH_GOLANG_EXCLUDES}) ?
                     split(' ', $ENV{DH_GOLANG_EXCLUDES}) : ());
     my @targets = split(/\n/, $output);
